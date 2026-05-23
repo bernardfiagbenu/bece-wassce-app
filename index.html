@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EXAM - Authentication</title>
+
+    <script>
+        // Tailwind CDN config: enable class-based dark mode
+        window.tailwind = window.tailwind || {};
+        tailwind.config = { darkMode: 'class' };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- PWA basics -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Rankings ticker */
+        .ticker-container { position: relative; overflow: hidden; }
+        .ticker-track { display: flex; width: max-content; animation: ticker-scroll 28s linear infinite; }
+        .ticker-item { white-space: nowrap; padding: 0 0.75rem; border-right: 1px solid rgba(0,0,0,0.08); }
+        @keyframes ticker-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        
+        /* Enhanced form styles */
+        .form-input {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .form-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .dark .form-input:focus {
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+        }
+        
+        /* Enhanced button styles */
+        .btn-primary {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        
+        .btn-success {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-success:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 25px rgba(34, 197, 94, 0.3);
+        }
+        
+        .btn-success:active {
+            transform: translateY(0);
+        }
+        
+        /* Enhanced tab styles */
+        .tab-button {
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .tab-button:hover {
+            transform: translateY(-1px);
+        }
+        
+        /* Enhanced theme toggle */
+        .theme-toggle {
+            transition: all 0.3s ease;
+        }
+        
+        .theme-toggle:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="bg-black min-h-screen flex items-center justify-center p-2 sm:p-4">
+    <div class="w-full max-w-sm sm:max-w-md mx-auto">
+        <!-- Live Rankings (auto-visible, spans ~80% width) -->
+        <div id="auth-ticker-wrapper" class="mb-4">
+            <div id="rankings-ticker" class="ticker-container bg-gray-800 rounded-lg border border-gray-600" style="width:90%; margin:0 auto;">
+                <div class="flex">
+                    <div id="ticker-track-a" class="ticker-track py-2 text-xs text-gray-100"></div>
+                    <div id="ticker-track-b" class="ticker-track py-2 text-xs text-gray-100"></div>
+                </div>
+            </div>
+        </div>
+        <div class="text-center mb-6">
+            <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">EXAM</h1>
+            <p class="text-gray-300 text-sm sm:text-base">Authenticate to continue</p>
+        </div>
+
+        <!-- Theme toggle -->
+        <div class="flex justify-center mb-4">
+            <button id="theme-toggle" class="theme-toggle flex items-center space-x-2 px-3 py-2 bg-gray-800 rounded-lg shadow-sm border border-gray-600 text-gray-300 hover:bg-gray-700">
+                <svg id="sun-icon" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                <svg id="moon-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                <span id="theme-text" class="text-sm">Dark Mode</span>
+            </button>
+        </div>
+
+        <div class="bg-gray-900 rounded-xl shadow-lg border border-gray-700 p-4 sm:p-6">
+            <!-- Tabs -->
+            <div class="flex justify-center mb-4 sm:mb-6">
+                <div class="inline-flex rounded-lg overflow-hidden border border-gray-600">
+                    <button id="tab-login" class="tab-button px-3 sm:px-4 py-2 text-sm font-medium bg-gray-700 text-white border-r border-gray-600">Login</button>
+                    <button id="tab-signup" class="tab-button px-3 sm:px-4 py-2 text-sm font-medium text-gray-300 bg-gray-800">Sign Up</button>
+                </div>
+            </div>
+
+            <!-- Login (Phone OTP) -->
+            <form id="login-form" class="space-y-4 sm:space-y-6">
+                <div>
+                    <label for="login-phone" class="block text-sm font-medium text-gray-300 mb-2">Phone Number</label>
+                    <input type="tel" id="login-phone" required placeholder="+233241234567" class="form-input w-full px-3 py-2.5 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-800 text-white placeholder-gray-400 text-sm">
+                </div>
+                <div id="recaptcha-login" class="mb-2"></div>
+                <button type="button" id="send-login-otp" class="btn-primary w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg text-sm">Send Login Code</button>
+                <div id="login-otp-section" class="hidden space-y-3">
+                    <label for="login-otp" class="block text-sm font-medium text-gray-300 mb-2">Verification Code</label>
+                    <input type="text" id="login-otp" placeholder="Enter 6-digit code" pattern="[0-9]{6}" class="form-input w-full px-3 py-2.5 border border-gray-600 rounded-lg bg-gray-800 text-white text-sm">
+                    <button type="button" id="verify-login-otp" class="btn-success w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-4 rounded-lg text-sm">Verify & Login</button>
+                </div>
+                <p class="text-xs sm:text-sm text-center text-gray-400">Don't have an account? <button type="button" id="to-signup" class="text-blue-400 hover:underline">Sign up</button></p>
+            </form>
+
+            <!-- Sign Up (Phone OTP) -->
+            <form id="signup-form" class="space-y-4 sm:space-y-6 hidden">
+                <div>
+                    <label for="signup-first" class="block text-sm font-medium text-gray-300 mb-2">First Name</label>
+                    <input type="text" id="signup-first" required placeholder="Enter first name" class="form-input w-full px-3 py-2.5 border border-gray-600 rounded-lg bg-gray-800 text-white text-sm">
+                </div>
+                <div>
+                    <label for="signup-last" class="block text-sm font-medium text-gray-300 mb-2">Last Name</label>
+                    <input type="text" id="signup-last" required placeholder="Enter last name" class="form-input w-full px-3 py-2.5 border border-gray-600 rounded-lg bg-gray-800 text-white text-sm">
+                </div>
+                <div>
+                    <label for="signup-school" class="block text-sm font-medium text-gray-300 mb-2">School Name</label>
+                    <input type="text" id="signup-school" required placeholder="Enter school name" class="form-input w-full px-3 py-2.5 border border-gray-600 rounded-lg bg-gray-800 text-white text-sm">
+                </div>
+                <div>
+                    <label for="signup-phone" class="block text-sm font-medium text-gray-300 mb-2">Phone Number</label>
+                    <input type="tel" id="signup-phone" required placeholder="+233241234567" class="form-input w-full px-3 py-2.5 border border-gray-600 rounded-lg bg-gray-800 text-white text-sm">
+                    <p class="text-xs text-gray-400 mt-1">Use international format starting with +</p>
+                </div>
+                <div id="recaptcha-signup" class="mb-2"></div>
+                <button type="button" id="send-signup-otp" class="btn-primary w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg text-sm">Send Verification Code</button>
+                <div id="signup-otp-section" class="hidden space-y-3">
+                    <label for="signup-otp" class="block text-sm font-medium text-gray-300 mb-2">Verification Code</label>
+                    <input type="text" id="signup-otp" placeholder="Enter 6-digit code" pattern="[0-9]{6}" class="form-input w-full px-3 py-2.5 border border-gray-600 rounded-lg bg-gray-800 text-white text-sm">
+                    <button type="button" id="verify-signup-otp" class="btn-success w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-4 rounded-lg text-sm">Verify & Create Account</button>
+                </div>
+                <p class="text-xs sm:text-sm text-center text-gray-400">Already have an account? <button type="button" id="to-login" class="text-blue-400 hover:underline">Login</button></p>
+            </form>
+
+            <!-- Messages -->
+            <div id="success-message" class="hidden mt-4 p-3 bg-green-900 border border-green-700 rounded-lg text-green-200 text-sm"></div>
+            <div id="error-message" class="hidden mt-4 p-3 bg-red-900 border border-red-700 rounded-lg text-red-200 text-sm"></div>
+        </div>
+
+        <div class="text-center mt-4">
+            <p class="text-xs text-gray-400">By continuing, you agree to our terms</p>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs first -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    
+    <!-- AI Chatbot Script -->
+    <script src="ai-chatbot.js"></script>                                                                                                                                                                                                                                                                                                                                                                                           
+
+    <script>
+        // Firebase config (ensure this matches your project settings)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBPQxZvBmsJQ4kGxnWWBPs1pwRZnB8i3VE",
+            authDomain: "g00gleauthen-2afqo4.firebaseapp.com",
+            projectId: "g00gleauthen-2afqo4",
+            storageBucket: "g00gleauthen-2afqo4.appspot.com",
+            messagingSenderId: "151985888576",
+            appId: "1:151985888576:web:your-app-id"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Rankings ticker helpers
+        let _tickerRaf = null; let _lastTs = 0; const _tickerSpeedPxPerSec = 40; // smooth constant speed
+        function _startTickerLoop(){
+            const c = document.getElementById('rankings-ticker');
+            const a = document.getElementById('ticker-track-a');
+            const b = document.getElementById('ticker-track-b');
+            if(!c||!a||!b) return;
+            // Disable CSS animation to avoid jerks
+            a.style.animation = 'none'; b.style.animation = 'none';
+            // Ensure scroll starts at 0 each (re)start
+            c.scrollLeft = 0; _lastTs = 0;
+            const step = (ts)=>{
+                if(!_lastTs) _lastTs = ts;
+                const dt = Math.min((ts - _lastTs)/1000, 0.05); // cap to smooth
+                _lastTs = ts;
+                const width = a.scrollWidth || 1;
+                c.scrollLeft = (c.scrollLeft + _tickerSpeedPxPerSec * dt) % width;
+                _tickerRaf = requestAnimationFrame(step);
+            };
+            if(_tickerRaf) cancelAnimationFrame(_tickerRaf);
+            _tickerRaf = requestAnimationFrame(step);
+        }
+        function renderTicker(users){
+            const a = document.getElementById('ticker-track-a');
+            const b = document.getElementById('ticker-track-b');
+            if(!a||!b) return;
+            const items = users.map((u,i)=>{
+                const name = (u.displayName||'Student').toString().slice(0,18);
+                const school = (u.school||'').toString().slice(0,18);
+                const schoolSuffix = school ? ` • ${school}` : '';
+                return `<span class=\"ticker-item\">⚡ #${i+1} <span class=\"font-semibold\">${name}</span>${schoolSuffix}</span>`;
+            }).join('');
+            a.innerHTML = items; b.innerHTML = items;
+            // restart loop to avoid jumps after data refresh
+            _startTickerLoop();
+        }
+
+        // UI helpers
+        function show(el){ if(el) el.classList.remove('hidden'); }
+        function hide(el){ if(el) el.classList.add('hidden'); }
+        function setText(el, txt){ el.textContent = txt; }
+        function showError(msg){ const e=document.getElementById('error-message'); setText(e,msg); show(e); setTimeout(()=>hide(e),5000); }
+        function showSuccess(msg){ const s=document.getElementById('success-message'); setText(s,msg); show(s); setTimeout(()=>hide(s),3000); }
+
+        // Theme
+        function initTheme(){ const t=localStorage.getItem('theme')||'light'; document.documentElement.classList.toggle('dark', t==='dark'); updateThemeUI(t); }
+        function toggleTheme(){ const isDark=document.documentElement.classList.toggle('dark'); const t=isDark?'dark':'light'; localStorage.setItem('theme',t); updateThemeUI(t); }
+        function updateThemeUI(t){
+            document.getElementById('sun-icon').classList.toggle('hidden', t!=='dark');
+            document.getElementById('moon-icon').classList.toggle('hidden', t==='dark');
+            document.getElementById('theme-text').textContent = t==='dark' ? 'Light Mode' : 'Dark Mode';
+        }
+
+        // Name capitalization helpers (capitalize each word)
+        function toTitleCase(s){
+            return s.replace(/\s+/g,' ').trim().split(' ').map(p=>p.charAt(0).toUpperCase()+p.slice(1).toLowerCase()).join(' ');
+        }
+        function toInitialsCase(first, last){
+            const f = first.replace(/\s+/g,' ').trim();
+            const l = last.replace(/\s+/g,' ').trim();
+            const fCap = f ? f.charAt(0).toUpperCase()+f.slice(1).toLowerCase() : '';
+            const lCap = l ? l.charAt(0).toUpperCase()+l.slice(1).toLowerCase() : '';
+            return {first: fCap, last: lCap};
+        }
+
+        // Tabs
+        function showLogin(){
+            hide(document.getElementById('signup-form')); show(document.getElementById('login-form'));
+            document.getElementById('tab-login').classList.add('bg-gray-100','dark:bg-gray-700','text-gray-800','dark:text-gray-200');
+            document.getElementById('tab-signup').classList.remove('bg-gray-100','dark:bg-gray-700','text-gray-800','dark:text-gray-200');
+            show(document.getElementById('auth-ticker-wrapper'));
+        }
+        function showSignup(){
+            hide(document.getElementById('login-form')); show(document.getElementById('signup-form'));
+            document.getElementById('tab-signup').classList.add('bg-gray-100','dark:bg-gray-700','text-gray-800','dark:text-gray-200');
+            document.getElementById('tab-login').classList.remove('bg-gray-100','dark:bg-gray-700','text-gray-800','dark:text-gray-200');
+            show(document.getElementById('auth-ticker-wrapper'));
+        }
+
+        // Phone Auth (OTP)
+        let recaptchaLogin, recaptchaSignup, loginConfirmation, signupConfirmation;
+        let recaptchaLoginWidgetId = null, recaptchaSignupWidgetId = null;
+
+        async function ensureRecaptcha(containerId, existingInstance) {
+            if (existingInstance) return existingInstance;
+            const verifier = new firebase.auth.RecaptchaVerifier(containerId, { size: 'invisible' });
+            const widgetId = await verifier.render();
+            if (containerId === 'recaptcha-login') recaptchaLoginWidgetId = widgetId;
+            if (containerId === 'recaptcha-signup') recaptchaSignupWidgetId = widgetId;
+            return verifier;
+        }
+
+        function resetRecaptcha(which) {
+            try {
+                if (window.grecaptcha) {
+                    if (which === 'login' && recaptchaLoginWidgetId !== null) {
+                        window.grecaptcha.reset(recaptchaLoginWidgetId);
+                    }
+                    if (which === 'signup' && recaptchaSignupWidgetId !== null) {
+                        window.grecaptcha.reset(recaptchaSignupWidgetId);
+                    }
+                }
+            } catch (_) {}
+        }
+
+        function startCooldown(buttonId, seconds) {
+            const btn = document.getElementById(buttonId);
+            if (!btn) return;
+            if (!btn.dataset.originalText) btn.dataset.originalText = btn.textContent.trim();
+            if (btn._cooldownTimer) clearInterval(btn._cooldownTimer);
+            let remaining = seconds;
+            btn.disabled = true;
+            btn.textContent = `Resend in ${remaining}s`;
+            btn._cooldownTimer = setInterval(() => {
+                remaining -= 1;
+                if (remaining <= 0) {
+                    clearInterval(btn._cooldownTimer);
+                    btn.textContent = btn.dataset.originalText;
+                    btn.disabled = false;
+                } else {
+                    btn.textContent = `Resend in ${remaining}s`;
+                }
+            }, 1000);
+        }
+
+        async function sendLoginCode(){
+            const phone = document.getElementById('login-phone').value.trim();
+            if(!/^\+\d{10,15}$/.test(phone)) return showError('Enter a valid phone with country code, e.g. +233...');
+            try{
+                recaptchaLogin = await ensureRecaptcha('recaptcha-login', recaptchaLogin);
+                loginConfirmation = await auth.signInWithPhoneNumber(phone, recaptchaLogin);
+                show(document.getElementById('login-otp-section'));
+                showSuccess('Code sent. Check your phone.');
+                startCooldown('send-login-otp', 60);
+                resetRecaptcha('login');
+            }catch(e){ showError(e.message || 'Failed to send code'); }
+        }
+        async function verifyLoginCode(){
+            const code = document.getElementById('login-otp').value.trim();
+            if(!/^[0-9]{6}$/.test(code)) return showError('Enter the 6-digit code.');
+            try{
+                const result = await loginConfirmation.confirm(code);
+                const user = result.user;
+                // Ensure profile exists
+                const ref = db.collection('users').doc(user.uid);
+                await ref.set({ phone: user.phoneNumber, displayName: user.displayName || 'Student', lastLogin: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+                localStorage.setItem('userData', JSON.stringify({ uid: user.uid, displayName: user.displayName || 'Student', phone: user.phoneNumber }));
+                showSuccess('Logged in! Redirecting...');
+                
+                // Check for redirect destination
+                const redirectTo = localStorage.getItem('redirectAfterLogin');
+                if (redirectTo) {
+                    localStorage.removeItem('redirectAfterLogin');
+                    setTimeout(()=>{ window.location.href = redirectTo; }, 1200);
+                } else {
+                    setTimeout(()=>{ window.location.href = 'exam-select.html'; }, 1200);
+                }
+            }catch(e){ showError(e.message || 'Invalid code'); }
+        }
+
+        async function sendSignupCode(){
+            let first = document.getElementById('signup-first').value;
+            let last = document.getElementById('signup-last').value;
+            let school = document.getElementById('signup-school').value;
+            const initials = toInitialsCase(first, last);
+            first = initials.first; last = initials.last; school = toTitleCase(school);
+            document.getElementById('signup-first').value = first;
+            document.getElementById('signup-last').value = last;
+            document.getElementById('signup-school').value = school;
+            const phone = document.getElementById('signup-phone').value.trim();
+            if(first.length<2) return showError('Enter a valid first name');
+            if(last.length<2) return showError('Enter a valid last name');
+            if(school.length<2) return showError('Enter a valid school name');
+            if(!/^\+\d{10,15}$/.test(phone)) return showError('Enter phone in +countrycode format');
+            try{
+                recaptchaSignup = await ensureRecaptcha('recaptcha-signup', recaptchaSignup);
+                signupConfirmation = await auth.signInWithPhoneNumber(phone, recaptchaSignup);
+                show(document.getElementById('signup-otp-section'));
+                showSuccess('Code sent. Check your phone.');
+                startCooldown('send-signup-otp', 60);
+                resetRecaptcha('signup');
+            }catch(e){ showError(e.message || 'Failed to send code'); }
+        }
+        async function verifySignupCode(){
+            const code = document.getElementById('signup-otp').value.trim();
+            const first = document.getElementById('signup-first').value.trim();
+            const last = document.getElementById('signup-last').value.trim();
+            const school = document.getElementById('signup-school').value.trim();
+            const phone = document.getElementById('signup-phone').value.trim();
+            if(!/^[0-9]{6}$/.test(code)) return showError('Enter the 6-digit code.');
+            try{
+                const result = await signupConfirmation.confirm(code);
+                const user = result.user;
+                const displayName = `${first} ${last}`.trim();
+                await user.updateProfile({ displayName });
+                const ref = db.collection('users').doc(user.uid);
+                await ref.set({ displayName, phone, school, totalScore: 0, quizzesTaken: 0, averageTime: 0, rank: '--', createdAt: firebase.firestore.FieldValue.serverTimestamp(), lastLogin: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+                localStorage.setItem('userData', JSON.stringify({ uid: user.uid, displayName, phone, school }));
+                showSuccess('Account created! Redirecting...');
+                
+                // Check for redirect destination
+                const redirectTo = localStorage.getItem('redirectAfterLogin');
+                if (redirectTo) {
+                    localStorage.removeItem('redirectAfterLogin');
+                    setTimeout(()=>{ window.location.href = redirectTo; }, 1200);
+                } else {
+                    setTimeout(()=>{ window.location.href = 'exam-select.html'; }, 1200);
+                }
+            }catch(e){ showError(e.message || 'Verification failed'); }
+        }
+
+        // Existing session redirect
+        function checkExistingAuth(){
+            const data = localStorage.getItem('userData');
+            if(!data) return;
+            try{
+                const user = JSON.parse(data);
+                
+                // Check if there's a redirect destination
+                const redirectTo = localStorage.getItem('redirectAfterLogin');
+                if (redirectTo) {
+                    localStorage.removeItem('redirectAfterLogin');
+                    window.location.href = redirectTo;
+                    return;
+                }
+                
+                const y = localStorage.getItem('selectedYear');
+                const s = localStorage.getItem('selectedSubject');
+                if(y && s) window.location.href = 'index1.html';
+                else if(y) window.location.href = 'subject-select.html';
+                else window.location.href = 'exam-select.html';
+            }catch{ localStorage.removeItem('userData'); }
+        }
+
+        // SW register
+        if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }
+
+        // AI Chatbot - Already loaded via script tag
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check if AI chatbot loaded successfully
+            if (typeof AIChatbot !== 'undefined') {
+                console.log('AI Chatbot loaded successfully');
+            } else {
+                console.warn('AI Chatbot failed to load');
+            }
+        });
+
+        // Bind events
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            checkExistingAuth();
+            // Pre-render reCAPTCHA widgets (non-blocking)
+            ensureRecaptcha('recaptcha-login', recaptchaLogin).then(v => recaptchaLogin = v).catch(()=>{});
+            ensureRecaptcha('recaptcha-signup', recaptchaSignup).then(v => recaptchaSignup = v).catch(()=>{});
+
+            // Live rankings stream for signup ticker
+            try{
+                const q = db.collection('users').orderBy('totalScore','desc').limit(20);
+                q.onSnapshot((snap)=>{
+                    const users = snap.docs.map(d=>d.data());
+                    renderTicker(users);
+                });
+            }catch(_){/* ignore */}
+
+            // Ensure smooth ticker on resize and tab switches
+            window.addEventListener('resize', ()=>{ 
+                // reset loop and scroll to zero to avoid jerk
+                const c = document.getElementById('rankings-ticker');
+                if (c) { c.scrollLeft = 0; }
+            });
+
+            document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+            document.getElementById('tab-login').addEventListener('click', (e)=>{ e.preventDefault(); showLogin(); });
+            document.getElementById('tab-signup').addEventListener('click', (e)=>{ e.preventDefault(); showSignup(); });
+            document.getElementById('to-signup').addEventListener('click', (e)=>{ e.preventDefault(); showSignup(); });
+            document.getElementById('to-login').addEventListener('click', (e)=>{ e.preventDefault(); showLogin(); });
+
+            document.getElementById('send-login-otp').addEventListener('click', sendLoginCode);
+            document.getElementById('verify-login-otp').addEventListener('click', verifyLoginCode);
+            document.getElementById('send-signup-otp').addEventListener('click', sendSignupCode);
+            document.getElementById('verify-signup-otp').addEventListener('click', verifySignupCode);
+
+            // Default tab
+            showLogin();
+        });
+    </script>
+</body>
+</html>
